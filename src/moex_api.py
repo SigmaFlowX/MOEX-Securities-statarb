@@ -1,11 +1,16 @@
 import requests
 import json
 import pandas as pd
+from datetime import date
 
+def get_candles(symbol, start_date, end_date, sort, interval=10,  show=False):
 
-def get_candles(symbol, start_date, end_date, interval=10, engine="stock", market="shares", board="TQBR", show=False):
-    url = f"https://iss.moex.com/iss/engines/{engine}/markets/{market}/boards/{board}/securities/{symbol}/candles.json"
-
+    if sort=="shares":
+        url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{symbol}/candles.json"
+    elif sort=="futures":
+        url = f"https://iss.moex.com/iss/engines/futures/markets/forts/boards/TQBR/securities/{symbol}/candles.json"
+    else:
+        raise Exception ("invalid type")
     session = requests.Session()
     all_dfs = []
     start = 0
@@ -60,7 +65,14 @@ def get_all_futures():
 
 
 def main():
-    print(get_all_futures())
+    futures = get_all_futures()
 
+    ticker=futures[0]['secid']
+    candles = get_candles(ticker,
+                          date(2020,1,1),
+                          date(2026, 9, 23),
+                          sort="futures")
+
+    print(candles)
 if __name__ == "__main__":
     main()
