@@ -3,7 +3,7 @@ import json
 import pandas as pd
 from datetime import date
 
-def get_candles(symbol, start_date, end_date, sort, interval=10,  show=False):
+def get_candles(symbol, start_date, end_date, sort, interval=10):
 
     if sort=="shares":
         url = f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{symbol}/candles.json"
@@ -31,9 +31,6 @@ def get_candles(symbol, start_date, end_date, sort, interval=10,  show=False):
 
         all_dfs.append(pd.DataFrame(rows, columns=cols))
 
-        if show:
-            print(all_dfs[-1]['begin'].iloc[-1])
-
         if len(rows) < 500:
             break
         start += 500
@@ -43,7 +40,6 @@ def get_candles(symbol, start_date, end_date, sort, interval=10,  show=False):
 
     df = pd.concat(all_dfs, ignore_index=True)
     df["timestamp"] = pd.to_datetime(df["begin"])
-    df.set_index("timestamp", inplace=True)
     df.drop(columns=["begin"], inplace=True)
 
     return df
@@ -66,7 +62,7 @@ def get_all_futures():
 
 def main():
     futures = get_all_futures()
-
+    print(futures[0])
     ticker=futures[0]['secid']
     candles = get_candles(ticker,
                           date(2020,1,1),
@@ -74,5 +70,7 @@ def main():
                           sort="futures")
 
     print(candles)
+
+
 if __name__ == "__main__":
     main()
