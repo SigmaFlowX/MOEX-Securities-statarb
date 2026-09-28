@@ -4,6 +4,8 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 from statsmodels.regression.rolling import RollingOLS
 import statsmodels.api as sm
+from dateutil.relativedelta import relativedelta
+
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 def prepare_df(df, z_window, ols_window):
@@ -30,6 +32,22 @@ def prepare_df(df, z_window, ols_window):
     df = df.dropna()
 
     return df
+
+def objective(trial, df, fee):
+    df = df.copy()
+
+
+    z_entry = trial.suggest_float('z_entry', 0.0, 5)
+    z_exit = trial.suggest_float('z_exit', 0.0, z_entry)
+    z_window = trial.suggest_int('z_window', 0, 100)
+    ols_window = trial.suggest_int('ols_window', 10, 1000)
+
+    df = prepare_df(df, z_window, ols_window)
+
+    pnls, _ = run_backtest(df, z_entry, z_exit, fee)
+
+
+    return sum(pnls)
 
 def run_backtest(df, z_entry, z_exit, fee):
     open_share = df['open_share'].values
@@ -121,6 +139,27 @@ def plot_equity_curve(pnls, ts):
         print(f"Sharpe per trade: {sharpe_per_trade:.3f}")
 
     return equity, drawdown
+
+def generate_walk_forward_windows(df, train_months=6, test_months=3):
+    windows = []
+    start_date = df['timestamp'].min()
+    end_date = df['timestamp'].max()
+
+    current_start = start_date
+
+    while True:
+        train_start = current_start
+        train_end = train_start + relativedelta(months=train_months)
+        test_start = train_end
+        test_end = test_start + relativedelta(months=test_months)
+
+        if test_end > end_date:
+            break
+
+        windows.append((train_start, train_end, test_start, test_end))
+        current_start = train_start + relativedelta(months=test_months)
+
+    return windows
 
 def main():
     name = "SBERF-SBER"
