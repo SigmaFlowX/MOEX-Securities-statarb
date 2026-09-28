@@ -31,9 +31,6 @@ def prepare_df(df, z_window, ols_window):
     return df
 
 def run_backtest(df, z_entry, z_exit, fee):
-    close_share = df['close_share'].values
-    close_futures = df['close_futures'].values
-
     open_share = df['open_share'].values
     open_futures = df['open_futures'].values
 
@@ -44,14 +41,14 @@ def run_backtest(df, z_entry, z_exit, fee):
     pnls = []
     pos_entry_prices = None  #(share_price, futures_price) arr
     pos_entry_a = None
-    for i in range(len(close_share)-1):
+    for i in range(len(open_share)-1):
         if pos == 0:
             long_entry_cond = (
-                z[i] > z_entry
+                z[i] < -z_entry
             )
 
             short_entry_cond = (
-                z[i] < - z_entry
+                z[i] > z_entry
             )
 
             if long_entry_cond:
@@ -64,27 +61,26 @@ def run_backtest(df, z_entry, z_exit, fee):
                 pos_entry_a = a[i]
         elif pos==1:
             exit_cond =(
+                z[i] > -z_exit
+            )
+
+            if exit_cond:
+                pos = 0
+                share_pnl = open_share[i+1] - pos_entry_prices[0]
+                futures_pnl = pos_entry_prices[1] - open_futures[i+1]
+
+                pnls.append(share_pnl + futures_pnl - 4 * fee)
+        elif pos == -1:
+            exit_cond = (
                 z[i] < z_exit
             )
 
             if exit_cond:
                 pos = 0
-                share_pnl = close_share[i] - pos_entry_prices[0]
-                futures_pnl = close_futures[i] - pos_entry_prices[1]
+                share_pnl = pos_entry_prices[0] - open_share[i+1]
+                futures_pnl = open_futures[i+1] - pos_entry_prices[1]
 
-                pnls.append(share_pnl + futures_pnl - 2 * fee)
-        elif pos == -1:
-            exit_cond = (
-                z[i] > - z_exit
-            )
-
-            if exit_cond:
-                pos = 0
-
-                share_pnl = -close_share[i] + pos_entry_prices[0]
-                futures_pnl = -close_futures[i] + pos_entry_prices[1]
-
-                pnls.append(share_pnl + futures_pnl - 2 * fee)
+                pnls.append(share_pnl + futures_pnl - 4 * fee)
 
 
 def main():
@@ -93,7 +89,7 @@ def main():
     data = pd.read_csv(DATA_DIR / name)
 
     data = prepare_df(data, 10, 100)
-    run_backtest(data, 2,1)
+    run_backtest(data, 2,1, 0.0005)
 
 if __name__ == "__main__":
     main()
