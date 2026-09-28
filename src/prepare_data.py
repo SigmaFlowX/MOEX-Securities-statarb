@@ -12,8 +12,8 @@ def prepare_data():
 
     for i, future in enumerate(futures):
 
-        if i < 130: #to not rewrite existant data
-            continue
+        # if i < 130: #to not rewrite existant data
+            #continue
 
         futures_ticker = future['secid']
         underlying_ticker = future['underlying_asset']
@@ -50,7 +50,7 @@ def prepare_data():
             )
 
 
-            df = df[['timestamp', 'close_share', 'close_futures']]
+            df = df[['timestamp', 'open_share', 'open_futures','close_share', 'close_futures']]
             df.to_csv(DATA_DIR / f"{futures_ticker}-{underlying_ticker}", index=False)
             print(f"saved {underlying_ticker}")
 
