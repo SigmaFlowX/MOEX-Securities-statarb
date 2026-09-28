@@ -69,10 +69,10 @@ def run_backtest(df, z_entry, z_exit, fee):
 
             if exit_cond:
                 pos = 0
-                share_pnl = open_share[i+1] - pos_entry_prices[0]
-                futures_pnl = -pos_entry_a * (open_futures[i+1] - pos_entry_prices[1])
+                share_pnl = (open_share[i+1] - pos_entry_prices[0])/pos_entry_prices[0]
+                futures_pnl = -pos_entry_a * (open_futures[i+1] - pos_entry_prices[1])/pos_entry_prices[1]
 
-                ts.append(timestamps[i])
+                ts.append(timestamps[i+1])
                 pnls.append(share_pnl + futures_pnl - 4 * fee)
         elif pos == -1:
             exit_cond = (
@@ -81,11 +81,11 @@ def run_backtest(df, z_entry, z_exit, fee):
 
             if exit_cond:
                 pos = 0
-                share_pnl = pos_entry_prices[0] - open_share[i+1]
-                futures_pnl = pos_entry_a * (open_futures[i+1] - pos_entry_prices[1])
+                share_pnl = (pos_entry_prices[0] - open_share[i+1])/pos_entry_prices[0]
+                futures_pnl = pos_entry_a * (open_futures[i+1] - pos_entry_prices[1])/pos_entry_prices[1]
 
                 pnls.append(share_pnl + futures_pnl - 4 * fee)
-                ts.append(timestamps[i])
+                ts.append(timestamps[i+1])
 
     return pnls, ts
 
@@ -128,7 +128,7 @@ def main():
     data = pd.read_csv(DATA_DIR / name)
 
     data = prepare_df(data, 10, 100)
-    pnl, ts = run_backtest(data, 2,1, 0.005)
+    pnl, ts = run_backtest(data, 2,1, fee = 0.00047)
 
     plot_equity_curve(pnl, ts)
 
