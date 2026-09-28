@@ -5,6 +5,7 @@ from matplotlib import pyplot as plt
 from statsmodels.regression.rolling import RollingOLS
 import statsmodels.api as sm
 from dateutil.relativedelta import relativedelta
+import optuna
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -161,15 +162,47 @@ def generate_walk_forward_windows(df, train_months=6, test_months=3):
 
     return windows
 
+def optimize(df, fee, trials=200):
+    study = optuna.create_study(direction="maximize")
+    study.optimize(lambda trial: objective(trial, df, fee), n_trials=trials, n_jobs=-1)
+
+    return study.best_params
+
+def walk_forward_optimization(df, fee, train_month, test_month, trials=200):
+    df = df.copy()
+
+    windows = generate_walk_forward_windows(df, train_month, test_month)
+
+    pnls = [] #not cumulative, assuming fixed trade sizes
+    timestamps = []
+    for train_start, train_end, test_start, test_end in windows:
+        train_df = df.loc[(df['timestamp'] > train_start) & (df['timestamp'] < train_end)].copy()
+        test_df = df.loc[(df['timestamp'] > test_start) & (df['timestamp'] < test_end)].copy()
+
+        params = optimize(train_df, fee, trials)
+
+        ols_window = params['ols_window']
+        z_entry = params['z_entry']
+        z_exit = params['z_exit']
+        z_window = params['z_window']
+
+        test_df = prepare_df(test_df, z_window, ols_window)
+        test_results = run_backtest(test_df,z_entry, z_exit, fee)
+
+        pnls += test_results[0]
+        timestamps += test_results[1]
+
+    plot_equity_curve(pnls, timestamps)
+
+
 def main():
     name = "SBERF-SBER"
 
     data = pd.read_csv(DATA_DIR / name)
 
     data = prepare_df(data, 10, 100)
-    pnl, ts = run_backtest(data, 2,1, fee = 0.00047)
+    walk_forward_optimization(data, fee=0, train_month=1, test_month=1, trials=10)
 
-    plot_equity_curve(pnl, ts)
 
 if __name__ == "__main__":
     main()
