@@ -12,6 +12,9 @@ def prepare_data():
 
     for i, future in enumerate(futures):
 
+        if i < 130: #to not rewrite existant data
+            continue
+
         futures_ticker = future['secid']
         underlying_ticker = future['underlying_asset']
 
@@ -20,7 +23,7 @@ def prepare_data():
         try:
             underlying_candles = get_candles(
                 underlying_ticker,
-                date(2026, 9, 10),
+                date(2020, 1, 1),
                 date(2026, 9, 23),
                 sort='shares'
             )
@@ -30,7 +33,7 @@ def prepare_data():
 
             future_candles = get_candles(
                 futures_ticker,
-                date(2020, 9, 10),
+                date(2020, 1, 1),
                 date(2026, 9, 23),
                 sort='futures'
             )
@@ -47,8 +50,8 @@ def prepare_data():
             )
 
 
-            df = df[['close_share', 'close_futures', 'end_share', 'end_futures']]
-            df.to_csv(DATA_DIR / f"{futures_ticker}-{underlying_ticker}")
+            df = df[['timestamp', 'close_share', 'close_futures']]
+            df.to_csv(DATA_DIR / f"{futures_ticker}-{underlying_ticker}", index=False)
             print(f"saved {underlying_ticker}")
 
 
