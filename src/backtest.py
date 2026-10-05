@@ -6,6 +6,7 @@ from statsmodels.regression.rolling import RollingOLS
 import statsmodels.api as sm
 from dateutil.relativedelta import relativedelta
 import optuna
+optuna.logging.disable_default_handler()
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
@@ -108,7 +109,7 @@ def run_backtest(df, z_entry, z_exit, fee):
 
     return pnls, ts
 
-def plot_equity_curve(pnls, ts):
+def plot_equity_curve(pnls, ts, boundaries=None):
 
     equity = pd.Series(np.cumsum(pnls), index=pd.to_datetime(ts))
 
@@ -127,6 +128,11 @@ def plot_equity_curve(pnls, ts):
     axes[1].fill_between(drawdown.index, drawdown.values, 0, color='indianred', alpha=0.6)
     axes[1].set_ylabel('Drawdown')
     axes[1].grid(alpha=0.3)
+
+    if boundaries is not None:
+        for ax in axes:
+            for b in boundaries:
+                ax.axvline(b, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
 
     plt.tight_layout()
     plt.show()
@@ -176,6 +182,7 @@ def walk_forward_optimization(df, fee, train_month, test_month, trials=200):
 
     pnls = [] #not cumulative, assuming fixed trade sizes
     timestamps = []
+    boundaries = []
     for train_start, train_end, test_start, test_end in windows:
         train_df = df.loc[(df['timestamp'] > train_start) & (df['timestamp'] < train_end)].copy()
         test_df = df.loc[(df['timestamp'] > test_start) & (df['timestamp'] < test_end)].copy()
@@ -192,8 +199,9 @@ def walk_forward_optimization(df, fee, train_month, test_month, trials=200):
 
         pnls += test_results[0]
         timestamps += test_results[1]
+        boundaries.append(test_start)
 
-    plot_equity_curve(pnls, timestamps)
+    plot_equity_curve(pnls, timestamps, boundaries)
 
 
 def main():
