@@ -42,7 +42,7 @@ def objective(trial, df, fee):
     z_entry = trial.suggest_float('z_entry', 0.0, 5)
     z_exit = trial.suggest_float('z_exit', 0.0, z_entry)
     z_window = trial.suggest_int('z_window', 0, 100)
-    ols_window = trial.suggest_int('ols_window', 10, 1000)
+    ols_window = trial.suggest_int('ols_window', 10, 500)
 
     df = prepare_df(df, z_window, ols_window)
 
@@ -109,33 +109,34 @@ def run_backtest(df, z_entry, z_exit, fee):
 
     return pnls, ts
 
-def plot_equity_curve(pnls, ts, boundaries=None):
+def plot_equity_curve(pnls, ts, boundaries=None, only_print=False):
 
     equity = pd.Series(np.cumsum(pnls), index=pd.to_datetime(ts))
 
     running_max = equity.cummax()
     drawdown = equity - running_max
 
-    fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True,
-                              gridspec_kw={'height_ratios': [3, 1]})
+    if not only_print:
+        fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True,
+                                  gridspec_kw={'height_ratios': [3, 1]})
 
-    axes[0].plot(equity.index, equity.values, label='Equity', color='steelblue')
-    axes[0].set_ylabel('Cumulative PnL')
-    axes[0].set_title('Equity Curve')
-    axes[0].legend()
-    axes[0].grid(alpha=0.3)
+        axes[0].plot(equity.index, equity.values, label='Equity', color='steelblue')
+        axes[0].set_ylabel('Cumulative PnL')
+        axes[0].set_title('Equity Curve')
+        axes[0].legend()
+        axes[0].grid(alpha=0.3)
 
-    axes[1].fill_between(drawdown.index, drawdown.values, 0, color='indianred', alpha=0.6)
-    axes[1].set_ylabel('Drawdown')
-    axes[1].grid(alpha=0.3)
+        axes[1].fill_between(drawdown.index, drawdown.values, 0, color='indianred', alpha=0.6)
+        axes[1].set_ylabel('Drawdown')
+        axes[1].grid(alpha=0.3)
 
-    if boundaries is not None:
-        for ax in axes:
-            for b in boundaries:
-                ax.axvline(b, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
+        if boundaries is not None:
+            for ax in axes:
+                for b in boundaries:
+                    ax.axvline(b, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
 
-    plt.tight_layout()
-    plt.show()
+        plt.tight_layout()
+        plt.show()
 
     print(f"Total PnL: {equity.iloc[-1]:.2f}")
     print(f"Max Drawdown: {drawdown.min():.2f}")
@@ -201,20 +202,26 @@ def walk_forward_optimization(df, fee, train_month, test_month, trials=200):
         timestamps += test_results[1]
         boundaries.append(test_start)
 
-    plot_equity_curve(pnls, timestamps, boundaries)
+    plot_equity_curve(pnls, timestamps, boundaries, only_print=True)
 
 
 def main():
-    name = "SBERF-SBER"
+    names = [p.name for p in DATA_DIR.iterdir() if p.is_file()]
 
-    data = pd.read_csv(DATA_DIR / name)
-    data['timestamp'] = pd.to_datetime(data['timestamp'])
-    data = data.dropna(subset=['timestamp', 'close_share', 'close_futures'])
-    data = data.sort_values('timestamp').reset_index(drop=True)
+    for name in names:
+        print('-----------------------------')
+        print(name)
+        data = pd.read_csv(DATA_DIR / name)
+        data['timestamp'] = pd.to_datetime(data['timestamp'])
+        data = data.dropna(subset=['timestamp', 'close_share', 'close_futures'])
+        data = data.sort_values('timestamp').reset_index(drop=True)
 
+        print(data['timestamp'].iloc[-1], data['timestamp'].iloc[0])
 
-    walk_forward_optimization(data, fee = 0.0001, train_month=1, test_month=1, trials=20)
-
+        try:
+            walk_forward_optimization(data, fee = 0.0001, train_month=1, test_month=1, trials=50)
+        except Exception as e:
+            print(e)
 
 if __name__ == "__main__":
     main()
