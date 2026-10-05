@@ -21,16 +21,6 @@ def prepare_data():
         print(i, len(futures))
 
         try:
-            underlying_candles = get_candles(
-                underlying_ticker,
-                date(2020, 1, 1),
-                date(2026, 9, 23),
-                sort='shares'
-            )
-
-            if underlying_candles.empty: #only works with futures-share pairs  for now
-                continue
-
             future_candles = get_candles(
                 futures_ticker,
                 date(2020, 1, 1),
@@ -39,6 +29,16 @@ def prepare_data():
             )
 
             if  future_candles.empty: #only works with futures-share pairs  for now
+                continue
+
+            underlying_candles = get_candles(
+                underlying_ticker,
+                future_candles['timestamp'].iloc[0],
+                date(2026, 9, 23),
+                sort='shares'
+            )
+
+            if underlying_candles.empty: #only works with futures-share pairs  for now
                 continue
 
             df = pd.merge_asof(

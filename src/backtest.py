@@ -143,6 +143,7 @@ def plot_equity_curve(pnls, ts):
 
 def generate_walk_forward_windows(df, train_months=6, test_months=3):
     windows = []
+
     start_date = df['timestamp'].min()
     end_date = df['timestamp'].max()
 
@@ -199,9 +200,12 @@ def main():
     name = "SBERF-SBER"
 
     data = pd.read_csv(DATA_DIR / name)
+    data['timestamp'] = pd.to_datetime(data['timestamp'])
+    data = data.dropna(subset=['timestamp', 'close_share', 'close_futures'])
+    data = data.sort_values('timestamp').reset_index(drop=True)
 
-    data = prepare_df(data, 10, 100)
-    walk_forward_optimization(data, fee=0, train_month=1, test_month=1, trials=10)
+
+    walk_forward_optimization(data, fee = 0.0001, train_month=1, test_month=1, trials=20)
 
 
 if __name__ == "__main__":
