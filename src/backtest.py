@@ -9,6 +9,7 @@ import optuna
 optuna.logging.disable_default_handler()
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+PLOTS_DIR = Path(__file__).resolve().parent.parent / "plots"
 
 def prepare_df(df, z_window, ols_window):
 
@@ -109,34 +110,36 @@ def run_backtest(df, z_entry, z_exit, fee):
 
     return pnls, ts
 
-def plot_equity_curve(pnls, ts, boundaries=None, only_print=False):
+def plot_equity_curve(pnls, ts, save_path = None,boundaries=None):
 
     equity = pd.Series(np.cumsum(pnls), index=pd.to_datetime(ts))
 
     running_max = equity.cummax()
     drawdown = equity - running_max
 
-    if not only_print:
-        fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True,
-                                  gridspec_kw={'height_ratios': [3, 1]})
+    fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True,
+                              gridspec_kw={'height_ratios': [3, 1]})
 
-        axes[0].plot(equity.index, equity.values, label='Equity', color='steelblue')
-        axes[0].set_ylabel('Cumulative PnL')
-        axes[0].set_title('Equity Curve')
-        axes[0].legend()
-        axes[0].grid(alpha=0.3)
+    axes[0].plot(equity.index, equity.values, label='Equity', color='steelblue')
+    axes[0].set_ylabel('Cumulative PnL')
+    axes[0].set_title('Equity Curve')
+    axes[0].legend()
+    axes[0].grid(alpha=0.3)
 
-        axes[1].fill_between(drawdown.index, drawdown.values, 0, color='indianred', alpha=0.6)
-        axes[1].set_ylabel('Drawdown')
-        axes[1].grid(alpha=0.3)
+    axes[1].fill_between(drawdown.index, drawdown.values, 0, color='indianred', alpha=0.6)
+    axes[1].set_ylabel('Drawdown')
+    axes[1].grid(alpha=0.3)
 
-        if boundaries is not None:
-            for ax in axes:
-                for b in boundaries:
-                    ax.axvline(b, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
+    if boundaries is not None:
+        for ax in axes:
+            for b in boundaries:
+                ax.axvline(b, color='gray', linestyle='--', linewidth=0.8, alpha=0.7)
 
-        plt.tight_layout()
-        plt.show()
+    plt.tight_layout()
+
+    if save_path is not None:
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(save_path, dpi=150)
 
     print(f"Total PnL: {equity.iloc[-1]:.2f}")
     print(f"Max Drawdown: {drawdown.min():.2f}")
@@ -176,7 +179,7 @@ def optimize(df, fee, trials=200):
 
     return study.best_params
 
-def walk_forward_optimization(df, fee, train_month, test_month, trials=200):
+def walk_forward_optimization(df, fee, train_month, test_month, save_path=None,trials=200):
     df = df.copy()
 
     windows = generate_walk_forward_windows(df, train_month, test_month)
@@ -202,13 +205,15 @@ def walk_forward_optimization(df, fee, train_month, test_month, trials=200):
         timestamps += test_results[1]
         boundaries.append(test_start)
 
-    plot_equity_curve(pnls, timestamps, boundaries, only_print=True)
+    plot_equity_curve(pnls, timestamps, save_path=save_path, boundaries=boundaries)
 
 
 def main():
     names = [p.name for p in DATA_DIR.iterdir() if p.is_file()]
 
     for name in names:
+        save_path = PLOTS_DIR / f"{name}.png" if name else None
+
         print('-----------------------------')
         print(name)
         data = pd.read_csv(DATA_DIR / name)
@@ -219,7 +224,7 @@ def main():
         print(data['timestamp'].iloc[-1], data['timestamp'].iloc[0])
 
         try:
-            walk_forward_optimization(data, fee = 0.0001, train_month=1, test_month=1, trials=50)
+            walk_forward_optimization(data, save_path=save_path,fee = 0.0001, train_month=1, test_month=1, trials=50)
         except Exception as e:
             print(e)
 
